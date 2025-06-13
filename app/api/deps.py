@@ -1,14 +1,14 @@
-from typing import Generator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
+from typing import Generator
 
 from app.core.config import settings
 from app.core.security import decode_token
 from app.schemas.token import TokenPayload
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def get_token_payload(token: str = Depends(oauth2_scheme)) -> TokenPayload:

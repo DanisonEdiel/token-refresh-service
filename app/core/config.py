@@ -1,8 +1,6 @@
-from pydantic import BaseSettings, Field, AnyHttpUrl
-from typing import List, Optional, Union, Dict, Any
-import os
-import json
+from typing import Any, Optional
 
+from pydantic import BaseSettings, Field
 
 class Settings(BaseSettings):
     """Application settings"""
@@ -19,7 +17,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, env="JWT_REFRESH_TOKEN_EXPIRE_DAYS")
     
     # CORS
-    CORS_ORIGINS: List[str] = Field(["*"], env="CORS_ORIGINS")
+    CORS_ORIGINS: list[str] = Field(["http://localhost:3000", "http://localhost:8080"], env="CORS_ORIGINS")
     
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = Field(60, env="RATE_LIMIT_PER_MINUTE")
@@ -38,7 +36,7 @@ class Settings(BaseSettings):
     # Network configuration
     NETWORK_NAME: str = Field("auth-network", env="NETWORK_NAME")
     
-    def get_cors_origins(self) -> List[str]:
+    def get_cors_origins(self) -> list[str]:
         """Parse CORS_ORIGINS from string to list if needed"""
         if isinstance(self.CORS_ORIGINS, str):
             return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

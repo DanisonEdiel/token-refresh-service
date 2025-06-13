@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
 from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class Token(BaseModel):
@@ -10,9 +11,9 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     """Token payload schema"""
-    sub: Optional[str] = None
-    exp: Optional[int] = None
-    type: Optional[str] = None
+    sub: str | None = None
+    exp: int | None = None
+    type: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):

@@ -1,9 +1,9 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+
+from fastapi import APIRouter, HTTPException, status
+from loguru import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from loguru import logger
 
 from app.services.token_service import token_service
 from app.schemas.token import RefreshTokenRequest, Token, HealthResponse
@@ -28,7 +28,7 @@ async def refresh_token(request: RefreshTokenRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/health", response_model=HealthResponse)

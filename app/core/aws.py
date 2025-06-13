@@ -1,5 +1,6 @@
+from typing import Any
+
 import boto3
-from typing import Optional
 from loguru import logger
 
 from app.core.config import settings

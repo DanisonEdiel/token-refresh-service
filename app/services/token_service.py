@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from jose import JWTError, jwt
-from fastapi import HTTPException, status
+from datetime import datetime
+from typing import Any, dict
+
 import httpx
+from fastapi import HTTPException, status
+from jose import JWTError
 from loguru import logger
 
 from app.core.config import settings
@@ -62,7 +63,7 @@ class TokenService:
         except JWTError:
             raise credentials_exception
     
-    async def validate_user_with_auth_service(self, user_id: str) -> Dict[str, Any]:
+    async def validate_user_with_auth_service(self, user_id: str) -> dict[str, Any]:
         """
         Validar que el usuario existe en el servicio de autenticación
         """
@@ -80,11 +81,11 @@ class TokenService:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="User not found",
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from e
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error validating user: {str(e)}",
-            )
+            ) from e
 
 
 token_service = TokenService()

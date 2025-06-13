@@ -1,5 +1,6 @@
+from typing import Any, Optional
+
 import httpx
-from typing import Any, Dict, Optional
 from loguru import logger
 
 from app.core.config import settings
@@ -18,7 +19,7 @@ class ServiceClient:
             timeout=self.timeout
         )
     
-    async def get(self, url: str, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def get(self, url: str, params: Optional[dict[str, Any]] = None, headers: Optional[dict[str, str]] = None) -> dict[str, Any]:
         """
         Realizar una solicitud GET
         """
@@ -33,7 +34,7 @@ class ServiceClient:
             logger.error(f"Error en solicitud GET a {url}: {str(e)}")
             raise
     
-    async def post(self, url: str, json: Optional[Dict[str, Any]] = None, data: Any = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def post(self, url: str, json: Optional[dict[str, Any]] = None, data: Any = None, headers: Optional[dict[str, str]] = None) -> dict[str, Any]:
         """
         Realizar una solicitud POST
         """
