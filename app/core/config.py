@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = Field(["http://localhost:3000", "http://localhost:8080"], env="CORS_ORIGINS")
     
-    # Rate limiting
+    # Rate limitin
     RATE_LIMIT_PER_MINUTE: int = Field(60, env="RATE_LIMIT_PER_MINUTE")
     
     # Logging
