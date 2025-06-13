@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: token-refresh-service
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-supersecretkey}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

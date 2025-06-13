@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8001:8000"  # Usando puerto 8001 para evitar conflicto con el servicio de autenticación
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth-service:8000}
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+networks:
+  auth-network:
+    driver: bridge
+    external: true  # Permite conectarse a la red existente del servicio de autenticación
