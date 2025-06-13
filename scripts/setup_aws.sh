@@ -1,75 +1,138 @@
 #!/bin/bash
 
-# Script para configurar el entorno AWS en EC2
-# Este script debe ejecutarse en la instancia EC2 después del despliegue
+# Script para configurar el entorno en una instancia EC2 con Ubuntu
+# Este script debe ejecutarse como root o con sudo
 
-# Crear directorio para scripts
-mkdir -p /home/ec2-user/scripts
+# Actualizar paquetes
+echo "Actualizando paquetes del sistema..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update && apt-get upgrade -y
 
-# Instalar herramientas útiles
-echo "Instalando herramientas útiles..."
-sudo yum update -y
-sudo yum install -y jq curl wget htop
+# Instalar dependencias
+echo "Instalando dependencias..."
+apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    jq \
+    htop \
+    unzip \
+    git
 
-# Configurar el cliente de AWS
-echo "Configurando AWS CLI..."
-if ! command -v aws &> /dev/null; then
-    echo "Instalando AWS CLI..."
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    sudo ./aws/install
-    rm -rf aws awscliv2.zip
+# Instalar Docker
+echo "Instalando Docker..."
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo \
+  "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# Instalar Docker Compose
+echo "Instalando Docker Compose..."
+DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+mkdir -p $DOCKER_CONFIG/cli-plugins
+curl -SL https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+ln -sf $DOCKER_CONFIG/cli-plugins/docker-compose /usr/local/bin/docker-compose
+
+# Verificar Docker está funcionando
+systemctl start docker
+systemctl enable docker
+docker --version
+
+# Configurar usuario no root para Docker
+echo "Configurando usuario para Docker..."
+id -u ubuntu &>/dev/null || useradd -m ubuntu
+usermod -aG docker ubuntu
+
+# Crear directorio para la aplicación
+echo "Configurando directorio de la aplicación..."
+APP_DIR="/home/ubuntu/token-refresh-service"
+mkdir -p $APP_DIR
+chown -R ubuntu:ubuntu $APP_DIR
+
+# Clonar el repositorio si no existe
+if [ ! -d "$APP_DIR/.git" ]; then
+    echo "Clonando repositorio del proyecto..."
+    # Cambia la URL a tu repositorio real
+    su - ubuntu -c "git clone https://github.com/tu-usuario/token-refresh-service.git $APP_DIR"
 fi
 
-# Configurar región por defecto
-echo "Configurando región por defecto..."
-mkdir -p ~/.aws
-cat > ~/.aws/config << EOL
-[default]
-region = ${AWS_REGION:-us-east-1}
-output = json
-EOL
-
-# Verificar la identidad de la instancia
-echo "Verificando identidad de la instancia..."
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/[a-z]$//')
-echo "Instancia: $INSTANCE_ID en región: $REGION"
-
-# Crear script para verificar la salud del servicio
-cat > /home/ec2-user/scripts/check_health.sh << EOL
+# Configurar script de monitoreo
+echo "Configurando script de monitoreo..."
+cat > /usr/local/bin/check_service.sh << 'EOL'
 #!/bin/bash
 # Script para verificar la salud del servicio de refresh de tokens
 
 echo "Verificando salud del servicio..."
 HEALTH_URL="http://localhost:8001/auth/health"
-RESPONSE=\$(curl -s \$HEALTH_URL)
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
 
-if [[ \$? -eq 0 && \$RESPONSE == *"ok"* ]]; then
-    echo "Servicio saludable: \$RESPONSE"
+if [ "$RESPONSE" = "200" ]; then
+    echo "Service is healthy"
     exit 0
 else
-    echo "Servicio no saludable: \$RESPONSE"
+    echo "Service is down"
     exit 1
 fi
 EOL
 
-# Hacer ejecutable el script de salud
-chmod +x /home/ec2-user/scripts/check_health.sh
+chmod +x /usr/local/bin/check_service.sh
 
-# Crear script para reiniciar el servicio
-cat > /home/ec2-user/scripts/restart_service.sh << EOL
+# Configurar script de reinicio
+echo "Configurando script de reinicio..."
+cat > /usr/local/bin/restart_service.sh << 'EOL'
 #!/bin/bash
 # Script para reiniciar el servicio de refresh de tokens
 
 echo "Reiniciando servicio..."
-cd ~/token-refresh-service
+cd /home/ubuntu/token-refresh-service
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 echo "Servicio reiniciado"
 EOL
 
-# Hacer ejecutable el script de reinicio
-chmod +x /home/ec2-user/scripts/restart_service.sh
+chmod +x /usr/local/bin/restart_service.sh
 
-echo "Configuración completada"
+# Configuración cron para reinicio automático si falla el servicio
+echo "Configurando monitoreo automático..."
+(crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/check_service.sh || /usr/local/bin/restart_service.sh") | crontab -
+
+# Configurar logrotate para los logs de Docker
+echo "Configurando logrotate para Docker..."
+cat > /etc/logrotate.d/docker-containers << 'EOL'
+/var/lib/docker/containers/*/*.log {
+  rotate 7
+  daily
+  compress
+  size=10M
+  missingok
+  delaycompress
+  copytruncate
+}
+EOL
+
+# Configurar actualizaciones automáticas de seguridad
+echo "Configurando actualizaciones automáticas de seguridad..."
+apt-get install -y unattended-upgrades
+dpkg-reconfigure -plow unattended-upgrades
+
+# Limpiar
+echo "Limpiando paquetes innecesarios..."
+apt-get autoremove -y
+apt-get clean
+
+echo "=============================================="
+echo "Configuración completada con éxito!"
+echo "Por favor ejecuta estos comandos para continuar:"
+echo "1. Copia el código a la instancia:"
+echo "   scp -i tu-clave.pem -r token-refresh-service ubuntu@tu-ec2-ip:~"
+echo "2. Conéctate a la instancia:"
+echo "   ssh -i tu-clave.pem ubuntu@tu-ec2-ip"
+echo "3. Despliega el servicio:"
+echo "   cd ~/token-refresh-service && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
+echo "=============================================="
