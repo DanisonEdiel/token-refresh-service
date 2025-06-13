@@ -1,0 +1,44 @@
+# Ruff configuration file
+
+# Exclude some directories from linting
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "venv",
+    "env",
+    "node_modules",
+    "dist",
+    "build",
+]
+
+# Line length
+line-length = 88
+
+# Enable specific rules
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # Line too long
+    "F401",  # Imported but unused
+    "I001",  # Import block is un-sorted or un-formatted
+    "UP007", # Use `X | Y` for type annotations
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err`
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+
+# Target Python version
+target-version = "py39"
+
+[per-file-ignores]
+"__init__.py" = ["F401", "E501"]
+"tests/*" = ["F401"]
