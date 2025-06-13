@@ -39,30 +39,56 @@ jobs:
             mkdir -p ~/token-refresh-service
             cd ~/token-refresh-service
             
-            # Download docker-compose files
-            curl -o docker-compose.yml https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
-            curl -o docker-compose.prod.yml https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml
+            # Pull the latest Docker image
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/token-refresh-service:latest
             
             # Create .env file with secrets
             cat > .env << EOL
-            JWT_SECRET=${JWT_SECRET:-${{ secrets.JWT_SECRET }}}
-            JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-            JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-            JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
-            CORS_ORIGINS=${CORS_ORIGINS:-${{ secrets.CORS_ORIGINS }}}
-            RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
-            LOG_LEVEL=${LOG_LEVEL:-INFO}
-            AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-${{ secrets.AUTH_SERVICE_URL }}}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ALGORITHM=HS256
+            JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+            JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+            RATE_LIMIT_PER_MINUTE=60
+            LOG_LEVEL=INFO
+            AUTH_SERVICE_URL=${{ secrets.AUTH_SERVICE_URL }}
+            NETWORK_NAME=auth-network
             EOL
             
-            # Pull the latest image
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/token-refresh-service:latest
+            # Create or update docker-compose.yml
+            cat > docker-compose.yml << EOL
+            version: '3.8'
             
-            # Stop existing containers (if any) without removing volumes
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml stop || true
+            services:
+              token-refresh-service:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/token-refresh-service:latest
+                container_name: token-refresh-service
+                restart: always
+                ports:
+                  - "8001:8000"
+                env_file:
+                  - .env
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://localhost:8000/auth/health"]
+                  interval: 30s
+                  timeout: 10s
+                  retries: 3
+                  start_period: 10s
             
-            # Start the containers with the new image
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            networks:
+              default:
+                external: true
+                name: \${NETWORK_NAME:-auth-network}
+            EOL
+            
+            # Create network if it doesn't exist
+            docker network inspect auth-network >/dev/null 2>&1 || docker network create auth-network
+            
+            # Stop and remove existing containers
+            docker-compose down
+            
+            # Start the service
+            docker-compose up -d
             
             # Clean up old images
-            docker image prune -f
+            docker image prune -af
