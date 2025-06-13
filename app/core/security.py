@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -10,7 +10,7 @@ from app.core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     """
     Create JWT access token
     """
@@ -28,7 +28,7 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
     return encoded_jwt
 
 
-def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(subject: str, expires_delta: timedelta | None = None) -> str:
     """
     Create JWT refresh token
     """
@@ -46,7 +46,7 @@ def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None
     return encoded_jwt
 
 
-def decode_token(token: str) -> Dict[str, Any]:
+def decode_token(token: str) -> dict[str, Any]:
     """
     Decode JWT token
     """

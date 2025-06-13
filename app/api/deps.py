@@ -1,9 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from typing import Generator
+from jose import JWTError
 
-from app.core.config import settings
 from app.core.security import decode_token
 from app.schemas.token import TokenPayload
 
@@ -30,5 +28,5 @@ def get_token_payload(token: str = Depends(oauth2_scheme)) -> TokenPayload:
             raise credentials_exception
             
         return token_data
-    except (JWTError, ValueError):
-        raise credentials_exception
+    except (JWTError, ValueError) as e:
+        raise credentials_exception from e
